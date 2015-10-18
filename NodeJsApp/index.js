@@ -6,64 +6,63 @@ var server = require('http').createServer()
   , app = express()
   , port = 4080;
 
-//twitter
-var Twitter = require('twitter');
-
-var client = new Twitter({
-  consumer_key: 'QGypBjqk9aYf9VilCgqBPa28A',
-  consumer_secret: '93qc7hXcbeFxM5xTXBqRGhCGFt1epipUDxrBfUUHsPY1jUszNS',
-  access_token_key: '175810126-zfq95juKi3LL9gd6pWZp5exa5NZxFNHuwGJKQ2xB',
-  access_token_secret: 'i9TpN7rAS6AZ47XlKcmKUFdTaONo8oU5i28j985xFhPnL'
+//mysql
+var mysql      = require('mysql');
+var connection = mysql.createConnection({
+  host     : 'localhost',
+  user     : 'user1',
+  password : 'password1',
+  database : 'db_test'
 });
- 
-var params = {screen_name: 'nodejs'};
 
-setInterval(getTweets, 5000);
+//twitter init
+var twitterAPI = require('node-twitter-api');
+var twitter = new twitterAPI({
+    consumerKey: 'QGypBjqk9aYf9VilCgqBPa28A',
+    consumerSecret: '93qc7hXcbeFxM5xTXBqRGhCGFt1epipUDxrBfUUHsPY1jUszNS',
+    callback: 'http:////localhost:4080/'
+});
 
-var msg1;
+//twitter verify credentials
+function verifyCredentials(userName, accessToken, accessTokenSecret, callback){
+    twitter.verifyCredentials(accessToken, accessTokenSecret, function(error, data, response) {
+        if (error) {
+            //something was wrong with either accessToken or accessTokenSecret 
+            console.log('error twitter credentials');
+        } else { 
+            console.log(userName);
+            insertUserIfNotExists(userName);
+        }
+    });
+    callback();
+}
 
-function getTweets(){
-	console.log('get tweets');
-	client.get('statuses/user_timeline', params, function(error, tweets, response){
-	//client.get('favorites/list', params, function(error, tweets, response){
-		if (!error) {
-			var oTweets = tweets;
-			//console.log(oTweets.length);
-			
-			for(var i = 0, len = oTweets.length; i < len; i++){
-				console.log(oTweets[i].text);
-			}
-			
-			//console.log(oTweets[1].text);
-			
-			//console.log(tweets);
-			//console.log(typeof tweets);
-			msg1 = tweets;
+function getUsers(){
+	connection.connect();
+	connection.query('SELECT * from table1', function(err, rows, fields) {
+		if (!err){
+			console.log('The solution is: ', rows);
 		}
 		else{
-			console.log(error);
+			console.log('Error while performing Query.');
 		}
 	});
-	
-	//client.get('favorites/list', function(error, tweets, response){
-	//	  if(error) 
-	//		  {
-	//		  	console.log(error);
-	//		  	throw error;
-	//		  }
-	//	  console.log(tweets);  // The favorites. 
-	//	  console.log(response);  // Raw response object. 
-	//	});
-	
+	connection.end();
 }
 
-function myTimer() {
-    var d = new Date();
-    console.log(d);
-    //msg1 = d;
+// INSERT INTO table1 (name1) SELECT 'luka' FROM DUAL WHERE NOT EXISTS (SELECT name1 FROM table1 WHERE name1='luka')
+function insertUserIfNotExists(user){
+    connection.connect();
+	connection.query('INSERT INTO table1 (name1) SELECT "' + user + '" FROM DUAL WHERE NOT EXISTS (SELECT name1 FROM table1 WHERE name1="' + user + '")', function(err, rows, fields) {
+		if (!err){
+			console.log('The solution is: ', rows);
+		}
+		else{
+			console.log('Error while performing Query.');
+		}
+	});
+	connection.end();
 }
-
-//twitter
 
 app.use(function (req, res) {
   res.send({ msg: "hello" });
@@ -75,13 +74,25 @@ wss.on('connection', function connection(ws) {
   // or ws.upgradeReq.headers.cookie (see http://stackoverflow.com/a/16395220/151312)
 
   ws.on('message', function incoming(message) {
-    console.log('received: %s', message);
+	    //var msg = JSON.stringify(JSON.parse(message));
+	    var msg = JSON.parse(message);
+	    //console.log('received: %s', message);
+	    //console.log('received: %s', msg.username);
+        //console.log('received: %s', msg.accesstoken);
+        //console.log('received: %s', msg.accesstokensecret);
+      
+        verifyCredentials(msg.username, msg.accesstoken, msg.accesstokensecret, function(){
+            ws.send('okcred');
+            ws.send('sync'); 
+            setInterval(function() {
+	            ws.send('sync');
+	            console.log("msg send");
+	        }, 10000 );
+        });
   });
-  //twitter
-  var sendmsg = msg1;
-  //twitter
-  ws.send(sendmsg);
 });
+
+
 
 server.on('request', app);
 server.listen(port, function () { console.log('Listening on ' + server.address().port) });
