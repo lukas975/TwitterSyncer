@@ -25,6 +25,8 @@ class Twitter extends CI_Controller
 		// Loading twitter configuration.
 		$this->config->load('twitter');
 		
+		$this->config->load('websocket');
+		
 		$this->load->library('session');
 		
 		$this->load->helper('url');
@@ -50,6 +52,8 @@ class Twitter extends CI_Controller
 	{
 		$data['authUser'] = false;
 		$data['screen_name'] = "";
+		$data['ws'] = $this->config->item('websocket_ws');
+		
 		if($this->session->userdata('access_token') && $this->session->userdata('access_token_secret'))
 		{
 			$data['authUser'] = true;

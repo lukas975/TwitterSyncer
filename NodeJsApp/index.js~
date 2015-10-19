@@ -83,11 +83,11 @@ wss.on('connection', function connection(ws) {
       
         verifyCredentials(msg.username, msg.accesstoken, msg.accesstokensecret, function(){
             ws.send('okcred');
-           
+            ws.send('sync'); 
             setInterval(function() {
 	            ws.send('sync');
 	            console.log("msg send");
-	        }, 5000 );
+	        }, 1000 );
         });
   });
 });
