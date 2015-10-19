@@ -52,10 +52,8 @@ class Twitter extends CI_Controller
 		$data['screen_name'] = "";
 		if($this->session->userdata('access_token') && $this->session->userdata('access_token_secret'))
 		{
-			// User is already authenticated. Add your user notification code here.
 			$data['authUser'] = true;
-			$content = $this->connection->get('account/verify_credentials');
-			$data['screenName'] = $content->screen_name;
+			$data['screenName'] = $this->session->userdata('twitter_screen_name');
 		}	
 		
 		$this->load->view('twitter/index', $data);
@@ -180,23 +178,9 @@ class Twitter extends CI_Controller
 
 	public function tweets()
 	{
-		
-		$json_data = array(
-			'name'=>'test' 	
-		);
-		
 		if($this->session->userdata('access_token') && $this->session->userdata('access_token_secret'))
 		{
-			$content = $this->connection->get('account/verify_credentials');
-			if(isset($content->errors))
-			{
-				// Most probably, authentication problems. Begin authentication process again.
-				$this->reset_session();
-				redirect(base_url('/twitter/auth'));
-			}
-			else
-			{
-				$result = $this->connection->get('statuses/home_timeline', array('count'=>'10'));
+			$result = $this->connection->get('statuses/home_timeline', array('count'=>'10'));
 		
 				if(!isset($result->errors))
 				{
@@ -205,25 +189,18 @@ class Twitter extends CI_Controller
 				}
 				else
 				{
-					// Error, message hasn't been published
-					echo "error";
+					// Array ( [0] => stdClass Object ( [message] => Rate limit exceeded [code] => 88 ) ) 
+					echo json_encode($result->errors);
 				}
-			}
+			
 		}
-		else
-		{
-			// User is not authenticated.
-			redirect(base_url('/twitter/auth'));
-		}
-		
-		//echo json_encode($json_data);
 	}
 	public function user()
 	{
+		
 		if($this->session->userdata('access_token') && $this->session->userdata('access_token_secret'))
 		{
-			$content = $this->connection->get('account/verify_credentials');
-			$screen_name = $content->screen_name;
+			$screen_name = $this->session->userdata('twitter_screen_name');
 			$access_token =  $this->session->userdata('access_token');
 			$access_token_secret =  $this->session->userdata('access_token_secret');
 			

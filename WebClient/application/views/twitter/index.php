@@ -55,7 +55,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 $( document ).ready(function() {
 
 var authUser = "<?php echo $authUser?>";
-console.log(authUser);
+//console.log(authUser);
 if(authUser == "1"){
 	//console.log("authUser");
 	connect();	
@@ -85,20 +85,20 @@ function connect() {
     		
     	})
       	).then(function(){
-          	console.log(msg);
+          	//console.log(msg);
       		ws.send(JSON.stringify(msg));
           	})
     };
     			
     ws.onmessage = function (event) {
-      	console.log(event.data);
+      	//console.log(event.data);
       	switch(event.data){
       		case "sync":
           		//console.log('case sync');
       			getTweets();
           		break;
       		case "okcred":
-          		console.log('case sync');
+          		//console.log('case sync');
           		$('#sync').append("<br />" + "credentials ok");
           		break;   		
       	}
@@ -128,9 +128,17 @@ function getTweets(){
 		$('#sync').append("<br />" + time);
 		$('#tweets').append("<ul class='list-group'>");
 		//console.log('Load was performed -> gettweets');
+		
+		// [{"message":"Rate limit exceeded","code":88}]		
 		$.each($.parseJSON(data), function(idx, obj){
-			$('#tweets').append("<li class='list-group-item'>" + obj.text + "</li>");
-			//console.log(obj.text);
+			if (typeof obj.message != undefined){
+				//console.log(obj.message);
+				$('#tweets').append("<li class='list-group-item'>" + obj.message + "</li>");
+			}
+			else if(typeof obj.message != undefined){
+				$('#tweets').append("<li class='list-group-item'>" + obj.text + "</li>");
+				//console.log(obj.text);
+			}
 		});
 		$('#tweets').append("</ul>");
 	})
