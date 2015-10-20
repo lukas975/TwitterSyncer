@@ -17,7 +17,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 | environments.
 |
 */
-$config['base_url'] = 'http://localhost/~luka/twittersyncer/';
+$config['base_url'] = 'http://192.168.137.20/~luka/twittersyncer/';
 
 /*
 |--------------------------------------------------------------------------

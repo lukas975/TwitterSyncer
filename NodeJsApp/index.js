@@ -7,6 +7,7 @@ var server = require('http').createServer(),
 	port = 4080;
 
 //mysql
+/*
 var mysql      = require('mysql');
 var connection = mysql.createConnection({
 	host     : 'localhost',
@@ -14,6 +15,17 @@ var connection = mysql.createConnection({
 	password : 'psw123',
 	database : 'db_twittersyncer'
 });
+*/
+var mysql      = require('mysql');
+var pool      =    mysql.createPool({
+    connectionLimit : 100, //important
+    host     : 'localhost',
+    user     : 'tsuser',
+    password : 'psw123',
+    database : 'db_twittersyncer',
+    debug    :  false
+});
+
 
 //twitter init
 var twitterAPI = require('node-twitter-api');
@@ -67,52 +79,96 @@ var JsonFormatter = {
     };
 
 //sync interval
-var intSync = 5000;
+//var intSync = 5000;
+var intSync = 50000;
+var timers = {};
 
-function verifyCredentials(userName, accessToken, accessTokenSecret, ws){
+//clients
+var count = 0;
+var id = 0;
+var clients = {};
+
+function verifyCredentials(userName, accessToken, accessTokenSecret, ws, id){
+
     twitter.verifyCredentials(accessToken, accessTokenSecret, function(error, data, response) {
         if (error) {            
         	ws.send("errcred");
         } else {
-            insertUserIfNotExists(userName);
-        	ws.send("okcred");
-        	ws.send('sync'); 
-            setInterval(function() {
-	            ws.send('sync');
+        	
+        	insertUserIfNotExists(userName);
+
+            ws.send("okcred");
+            ws.send('sync'); 
+            timers[id] = setInterval(function() {
+            	ws.send('sync');
 	        }, intSync );
         }
     });
 }
 
 // INSERT INTO table1 (name1) SELECT 'luka' FROM DUAL WHERE NOT EXISTS (SELECT name1 FROM table1 WHERE name1='luka')
+/*
 function insertUserIfNotExists(user){
     connection.connect();
 	connection.query('INSERT INTO users (username) SELECT "' + user + '" FROM DUAL WHERE NOT EXISTS (SELECT username FROM users WHERE username="' + user + '")', function(err, rows, fields) {
 		if (!err){
-			//console.log('The solution is: ', rows);
+			console.log('The solution is: ', rows);
 		}
 		else{
-			//console.log('Error while performing Query.');
+			console.log('Error while performing Query.: ' + err);
 		}
 	});
 	connection.end();
 }
+*/
+function insertUserIfNotExists(user){
+	
+    pool.getConnection(function(err,connection){
+        if (err) {
+          connection.release();
+          //res.json({"code" : 100, "status" : "Error in connection database"});
+          return;
+        }   
+
+        connection.query('INSERT INTO users (username) SELECT "' + user + '" FROM DUAL WHERE NOT EXISTS (SELECT username FROM users WHERE username="' + user + '")',function(err,rows){
+            connection.release();
+            if(!err) {
+                //res.json(rows);
+            }           
+        });
+
+        connection.on('error', function(err) {      
+              //res.json({"code" : 100, "status" : "Error in connection database"});
+              return;     
+        });
+  });
+}
+
 
 app.use(function (req, res) {
 	res.send({ msg: "hello" });
 });
 
+
 wss.on('connection', function connection(ws) {
 
 	var location = url.parse(ws.upgradeReq.url, true);
-
-	ws.on('message', function incoming(message) {
+	
+	id = count++;
+	clients[id] = ws;
+	
+	clients[id].on('message', function incoming(message) {
 		var msg = CryptoJS.AES.decrypt(message, "facility", { format: JsonFormatter });
 	    msg = msg.toString(CryptoJS.enc.Utf8);
 	    msg = JSON.parse(msg);
 	    
-	    verifyCredentials(msg.username, msg.accesstoken, msg.accesstokensecret, ws);
+	    verifyCredentials(msg.username, msg.accesstoken, msg.accesstokensecret, clients[id], id);
 
+	});
+	clients[id].on('close', function(reasonCode, description) {
+		clearInterval(timers[id]);
+	    delete clients[id];
+	    delete timers[id];
 	});
 });
 
